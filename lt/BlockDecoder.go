@@ -144,11 +144,11 @@ func (dec *BlockDecoder) reduceOther(clean decodedBlock, idx uint32) {
 				
 				dirtyBlock.xorBlock(clean.data, clean.i)
 				if len(dirtyBlock.mix) == 1 { // block is now clean
-					if block, in := dec.doneBlocks[dirtyBlock.mix[0]]; in {
+					if block, in := dec.doneBlocks[dirtyBlock.mix[0]]; in { // it was clean already
 						if !bytes.Equal(block, dirtyBlock.data) {
 							panic ("block mismatch")
 						}
-					} else {
+					} else { // new clean block
 						dec.nLeft--
 
 						dec.doneBlocks[dirtyBlock.mix[0]] = dirtyBlock.data
