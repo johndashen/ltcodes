@@ -1,12 +1,19 @@
 package lt
 
-import "bytes"
-import "math"
+import (
+	"bytes"
+	"math"
+)
 
 type decodedBlock []byte
 type mixedBlock struct {
 	data []byte
 	mix []uint32
+}
+
+type cleanBlock struct{
+	data decodedBlock;
+	i uint32
 }
 
 func (x mixedBlock) contains(idx uint32) (b bool, mixIdx int) {
@@ -21,7 +28,7 @@ func (x mixedBlock) contains(idx uint32) (b bool, mixIdx int) {
 }
 
 // returns true if removed, false if not found
-func (x mixedBlock) removeFromMix(idx uint32) bool {
+func (x *mixedBlock) removeFromMix(idx uint32) bool {
 	var ok bool
 	var mixIdx int
 	if ok, mixIdx = x.contains(idx); ok {
@@ -36,7 +43,7 @@ func (x *mixedBlock) xorBlock(y []byte, idx uint32) { //[]byte {
 		panic("xoring unequal length lists")
 	} 
 	if !x.removeFromMix(idx) {
-		panic("xoring unfound block")
+		panic("xoring block that is not contained in the mixed block")
 	}
 	for i, yb := range y {
 		x.data[i] ^= yb
@@ -75,33 +82,62 @@ func NewDecoder(firstBlock CodedBlock) BlockDecoder {
 	return em
 }
 
+func (dec BlockDecoder) BlockSize() uint32 {
+	return dec.blockSize
+}
+
+func (dec BlockDecoder) FileSize() uint32 {
+	return dec.fileSize
+}
+
+func (dec *BlockDecoder) addToDone(mb mixedBlock) {
+	if len(mb.mix) != 1 {
+		panic("shouldn't call addToDone")
+		return
+	} else if _, ok := dec.doneBlocks[mb.mix[0]]; ok {
+		return
+	} else {
+		dec.doneBlocks[mb.mix[0]] = mb.data
+		dec.nLeft--
+		dec.isDone[mb.mix[0]] = true
+	}
+}
 func (dec *BlockDecoder) Include(block CodedBlock) {
+	if dec.blockSize == 0 { //decoder not initialized
+		*dec = NewDecoder(block)
+		return
+	}
+	
 	blockList, seed := dec.planner.NextBlockList()
 	if seed != block.seed {
 		panic("seed not matching")
 	}
 
+	// the new block
 	mb := mixedBlock{
 		data: block.data,
 		mix: blockList,
 	}
-
-	for _, b := range blockList {
+		
+	ptr := 0
+	for ptr < len(mb.mix) { // blockList { 
+		b := mb.mix[ptr]
 		if dec.isDone[b] { // block b in the mix is already uncoded
 			if doneBlock, ok := dec.doneBlocks[b]; !ok {
 				panic("done block not in map") 
 			} else {
 				mb.xorBlock(doneBlock, b)
 			}
-		} // block b is not encoded
+		} else { // block b is not encoded
+			ptr++
+		}
 	}
 	if len(mb.mix) == 0 {
 		if !bytes.Equal(mb.data, make([]byte, dec.blockSize)) {
 			panic("completely unmixed block is not zero")
 		}
 	} else if len(mb.mix) == 1 {
-		dec.doneBlocks[mb.mix[0]] = mb.data // if this block is cleaned
-		dec.nLeft--
+		dec.addToDone(mb) // if this block is cleaned
 		dec.reduceOther(mb.data, mb.mix[0])
 	} else {
 		dec.stack = append(dec.stack, mb) // add to dirty block
@@ -109,8 +145,7 @@ func (dec *BlockDecoder) Include(block CodedBlock) {
 }
 
 func (dec BlockDecoder) AttemptDone() (done bool, data []byte) {
-
-	if dec.nLeft > 0 {
+	if len(dec.doneBlocks) == 0 || dec.nLeft > 0 {
 		return // false, empty
 	} else {
 		done = true
@@ -124,42 +159,43 @@ func (dec BlockDecoder) AttemptDone() (done bool, data []byte) {
 			}
 		}
 	}
+	if uint32(len(data)) < dec.fileSize {
+		panic("not enough data for the file")
+	}
+	if uint32(len(data)) > dec.fileSize {
+		data = data[:dec.fileSize]
+	}
 	return
 }
 
 func (dec *BlockDecoder) reduceOther(clean decodedBlock, idx uint32) {
-	type cleanBlock struct{
-		data decodedBlock;
-		i uint32}
 	alsoCleaned := []cleanBlock{{
 		data:clean, 
 		i:idx}}
 	for len(alsoCleaned) > 0 && dec.nLeft > 0 {
 		clean := alsoCleaned[0]
 		alsoCleaned = alsoCleaned[1:]
-		
+
 		newStack := make([]mixedBlock, 0, len(dec.stack))
 		for _, dirtyBlock := range dec.stack {
 			if in, _ := dirtyBlock.contains(clean.i); in {
-				
 				dirtyBlock.xorBlock(clean.data, clean.i)
-				if len(dirtyBlock.mix) == 1 { // block is now clean
-					if block, in := dec.doneBlocks[dirtyBlock.mix[0]]; in { // it was clean already
-						if !bytes.Equal(block, dirtyBlock.data) {
-							panic ("block mismatch")
-						}
-					} else { // new clean block
-						dec.nLeft--
+			}
 
-						dec.doneBlocks[dirtyBlock.mix[0]] = dirtyBlock.data
-						alsoCleaned = append(alsoCleaned, 
-							cleanBlock{
-								data:dirtyBlock.data, 
-								i:dirtyBlock.mix[0]})
+			if len(dirtyBlock.mix) == 1 { // block is now clean
+				if block, in := dec.doneBlocks[dirtyBlock.mix[0]]; in { // it was clean already
+					if !bytes.Equal(block, dirtyBlock.data) {
+						panic ("block mismatch")
 					}
-				} else { // block is still dirty
-					newStack = append(newStack, dirtyBlock)
+				} else { // new clean block
+					dec.addToDone(dirtyBlock)
+					alsoCleaned = append(alsoCleaned, 
+						cleanBlock{
+							data:dirtyBlock.data, 
+							i:dirtyBlock.mix[0]})
 				}
+			} else { // block is still dirty
+				newStack = append(newStack, dirtyBlock)
 			}
 		}
 		dec.stack = newStack

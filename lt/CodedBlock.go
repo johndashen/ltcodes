@@ -39,7 +39,7 @@ func ReadBlockFrom(r io.Reader) (b CodedBlock, err error) {
 	}
 
 	b.data = make([]byte, b.blockSize)
-	_, err = r.Read(b.data) // todo: handle partial read
+	_, err = r.Read(b.data) // todo: handle partial read and other errors
 	if err != nil {
 		return
 	}
