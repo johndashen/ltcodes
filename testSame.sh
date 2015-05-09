@@ -10,7 +10,7 @@ function usage {
 function or_go_build {
 	bin=$1
 	if [ ! -e $bin ]; then
-		go build ltcodes/$bin
+		go build ${bin}.go
 		if [ $? -ne 0 ] ; then
 			echo "Can't build go package [$1], exiting..."
 			exit 1

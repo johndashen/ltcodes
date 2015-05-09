@@ -1,3 +1,4 @@
+// +build decode
 package main
 
 import "flag"

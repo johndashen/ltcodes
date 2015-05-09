@@ -1,3 +1,4 @@
+// +build encode
 package main
 
 import "flag"
