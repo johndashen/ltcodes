@@ -13,6 +13,11 @@ func (gen *LinearGen) getSeed() uint32 {
 	return gen.seed
 }
 
+func (gen *LinearGen) setSeed(seed uint32) {
+	gen.seed = seed
+}
+
+
 func (gen *LinearGen) nextInt() uint32 {
 	gen.seed = uint32(a * uint64(gen.seed) % math.MaxInt32)
 	return gen.seed

@@ -10,6 +10,14 @@ func Usage() {
 		fmt.Println("decode")
 }
 
+func Eprintf(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
+}
+
+func Eprintln(a ...interface{}) {
+	fmt.Fprintln(os.Stderr, a...)
+}
+
 func main() {
 	startT := time.Now()
 	// argument parsing - no args
@@ -27,13 +35,6 @@ func main() {
 
 	wrapUp := func(d []byte) {
 		stopT := time.Now()
-		Eprintf := func(format string, a ...interface{}) {
-			fmt.Fprintf(os.Stderr, format, a...)
-		}
-		Eprintln := func(a ...interface{}) {
-			fmt.Fprintln(os.Stderr, a...)
-		}
-
 		Eprintln("file received in", stopT.Sub(startT))
 		Eprintf("total size: %d bytes\n", len(d))
 		Eprintf("packets received: %d, packets processed: %d, packets dropped: %d\n", ctrs.in, ctrs.proc, ctrs.drop)
@@ -54,12 +55,15 @@ func main() {
 
 		ctrs.in++
 		if err != nil {
-			fmt.Println(err.Error())
+			Eprintln(err.Error())
 			ctrs.drop++
 			// return
+		} else if !decoder.Validate(b) {
+//			Eprintln("Dropped block found")
+			ctrs.drop++
 		} else {
 			ctrs.proc ++
+			decoder.Include(b)
 		}
-		decoder.Include(b)
 	}
 }

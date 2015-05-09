@@ -2,7 +2,7 @@
 
 # no arguments
 function usage {
-	echo "Usage: $0 <filename> <blocksize>" 
+	echo "Usage: $0 <filename> <blocksize> <drop>" 
 	exit 1
 }
 
@@ -20,19 +20,19 @@ function or_go_build {
 
 ########## main:
 # test whether encode or decode exist
-test "$#" -eq 2 || usage
+test "$#" -eq 3 || usage
 FILE=$1
 BSIZE=$2
-
+DROP=$3
 # build encode and decode
 # following assumes we run from the gocode directory
-or_go_build encode
+or_go_build encode-drop
 or_go_build decode
 
 ### actual test
 #SEED=1
 
-./encode $FILE $BSIZE | ./decode | cmp $1 - -l
+./encode-drop $FILE $BSIZE $DROP | ./decode | cmp $1 - -l
 if [ $? -eq 0 ]; then
 	echo "test.sh: File correctly transmitted"
 fi

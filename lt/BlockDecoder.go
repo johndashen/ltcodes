@@ -104,16 +104,33 @@ func (dec *BlockDecoder) addToDone(mb mixedBlock) {
 	}
 }
 
+func (dec *BlockDecoder) Validate(block CodedBlock) bool {
+	if dec.blockSize == 0 { //decoder not initialized
+		return true
+	} else if dec.blockSize != block.blockSize || dec.fileSize != block.fileSize {
+		return false
+	} 
+	return true
+}
+
+// precondition: validate first or risk panic based on sizes
 func (dec *BlockDecoder) Include(block CodedBlock) {
 	if dec.blockSize == 0 { //decoder not initialized
 		*dec = *NewDecoder(block)
 		return
 	}
-	
+
+	if dec.blockSize != block.blockSize || dec.fileSize != block.fileSize {
+		panic(fmt.Sprintf("(block, file)size not matching: decoder = (%d,%d) incoming = (%d, %d)", 
+			dec.blockSize, dec.fileSize, block.blockSize, block.fileSize))
+	} 
+
+	dec.planner.rando.setSeed(block.seed)
 	blockList, seed := dec.planner.NextBlockList()
+
 	if seed != block.seed {
 		panic(fmt.Sprintf("seed not matching: decoder = %d, incoming = %d", seed, block.seed))
-	}
+	} 
 
 	// the new block
 	mb := mixedBlock{

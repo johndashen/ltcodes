@@ -15,6 +15,14 @@ var (
 )
 const BLOCK_HEADER_SIZE = 12
 
+func EmptyCodedBlock(fs uint32, bs uint32) CodedBlock {
+	return CodedBlock{
+		fileSize: fs,
+		blockSize: bs,
+		seed: 1,
+		data: make([]byte, bs - BLOCK_HEADER_SIZE)}
+}
+
 func (b CodedBlock) Pack() []byte {
 	header := make([]byte, BLOCK_HEADER_SIZE)
 	NETWORK_BYTEORDER.PutUint32(header, b.fileSize)
