@@ -9,7 +9,6 @@ func Usage() {
 		fmt.Println("decode")
 }
 
-
 func main() {
 	startT := time.Now()
 	// argument parsing - no args
@@ -23,7 +22,8 @@ func main() {
 		in, proc, drop int;
 	}{}
 
-	var decoder lt.BlockDecoder
+	decoder := new(lt.BlockDecoder)
+
 	wrapUp := func(d []byte) {
 		stopT := time.Now()
 		Eprintf := func(format string, a ...interface{}) {
@@ -48,7 +48,9 @@ func main() {
 			wrapUp(data)
 			return
 		}
+
 		b, err := lt.ReadBlockFrom(os.Stdin)
+
 		ctrs.in++
 		if err != nil {
 			fmt.Println(err.Error())

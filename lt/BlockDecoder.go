@@ -2,6 +2,7 @@ package lt
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 )
 
@@ -65,8 +66,8 @@ type BlockDecoder struct {
 	nLeft int
 }
 
-func NewDecoder(firstBlock CodedBlock) BlockDecoder {
-	nb := uint32(math.Ceil(float64(firstBlock.fileSize)/float64(firstBlock.blockSize)))
+func NewDecoder(firstBlock CodedBlock) *BlockDecoder {
+	nb := uint32(math.Ceil(float64(firstBlock.fileSize)/float64(firstBlock.blockSize - BLOCK_HEADER_SIZE)))
 	em := BlockDecoder{
 		blockSize: firstBlock.blockSize,
 		fileSize: firstBlock.fileSize,
@@ -79,14 +80,14 @@ func NewDecoder(firstBlock CodedBlock) BlockDecoder {
 		nLeft: int(nb),
 	}
 	em.Include(firstBlock)
-	return em
+	return &em
 }
 
-func (dec BlockDecoder) BlockSize() uint32 {
+func (dec *BlockDecoder) BlockSize() uint32 {
 	return dec.blockSize
 }
 
-func (dec BlockDecoder) FileSize() uint32 {
+func (dec *BlockDecoder) FileSize() uint32 {
 	return dec.fileSize
 }
 
@@ -102,15 +103,16 @@ func (dec *BlockDecoder) addToDone(mb mixedBlock) {
 		dec.isDone[mb.mix[0]] = true
 	}
 }
+
 func (dec *BlockDecoder) Include(block CodedBlock) {
 	if dec.blockSize == 0 { //decoder not initialized
-		*dec = NewDecoder(block)
+		*dec = *NewDecoder(block)
 		return
 	}
 	
 	blockList, seed := dec.planner.NextBlockList()
 	if seed != block.seed {
-		panic("seed not matching")
+		panic(fmt.Sprintf("seed not matching: decoder = %d, incoming = %d", seed, block.seed))
 	}
 
 	// the new block
@@ -133,7 +135,7 @@ func (dec *BlockDecoder) Include(block CodedBlock) {
 		}
 	}
 	if len(mb.mix) == 0 {
-		if !bytes.Equal(mb.data, make([]byte, dec.blockSize)) {
+		if !bytes.Equal(mb.data, make([]byte, dec.blockSize - BLOCK_HEADER_SIZE)) {
 			panic("completely unmixed block is not zero")
 		}
 	} else if len(mb.mix) == 1 {

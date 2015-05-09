@@ -13,13 +13,18 @@ type CodedBlock struct {
 var (
 	NETWORK_BYTEORDER = binary.BigEndian
 )
+const BLOCK_HEADER_SIZE = 12
 
 func (b CodedBlock) Pack() []byte {
-	header := make([]byte, 12)
+	header := make([]byte, BLOCK_HEADER_SIZE)
 	NETWORK_BYTEORDER.PutUint32(header, b.fileSize)
 	NETWORK_BYTEORDER.PutUint32(header[4:], b.blockSize)
 	NETWORK_BYTEORDER.PutUint32(header[8:], b.seed)
 	return append(header, b.data...)
+}
+
+func (b CodedBlock) Seed() uint32 {
+	return b.seed
 }
 
 func ReadBlockFrom(r io.Reader) (b CodedBlock, err error) {
@@ -38,7 +43,7 @@ func ReadBlockFrom(r io.Reader) (b CodedBlock, err error) {
 		return
 	}
 
-	b.data = make([]byte, b.blockSize)
+	b.data = make([]byte, b.blockSize - BLOCK_HEADER_SIZE)
 	_, err = r.Read(b.data) // todo: handle partial read and other errors
 	if err != nil {
 		return
