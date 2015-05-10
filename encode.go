@@ -1,13 +1,16 @@
 // +build encode
 package main
 
-import "flag"
-import "fmt"
-import "ltcodes/lt"
-import "math/rand"
-import "strconv"
-import "os"
-import "time"
+import (
+	"flag"
+	"fmt"
+	"./lt"
+	"math/rand"
+	"strconv"
+	"os"
+	"time"
+)
+
 func Usage() {
 		fmt.Println("encode <filename> <blockSize> [seed]")
 }
@@ -37,7 +40,29 @@ func main() {
 		}
 		seed = uint32(tmp)
 	}
-	encoder := lt.NewEncoder(filename, uint32(blockSize), seed)
+
+	// get file size
+	stats, err := os.Lstat(filename)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+	fSize := stats.Size()
+
+	// open file
+	f, err := os.Open(filename)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+
+	defer func() {
+		if err = f.Close(); err != nil {
+			fmt.Errorf(err.Error())
+		}
+	}()
+	
+	encoder := lt.NewEncoder(f, uint64(fSize), uint32(blockSize), seed)
 	
 	for err == nil {
 		nextBlock := encoder.NextCodedBlock()

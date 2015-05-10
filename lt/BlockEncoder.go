@@ -2,8 +2,8 @@ package lt
 
 import (
 	"fmt"
+	"io"
 	"math"
-	"os"
 )
 
 type BlockEncoder struct {
@@ -19,51 +19,32 @@ type BlockEncoder struct {
 type uncodedBlock []byte
 
 // datablockSize is the size of the individual data blocks apart from the header 
-func NewEncoder(filename string, datablockSize uint32, initSeed uint32) *BlockEncoder {
-
-	stats, err := os.Lstat(filename)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return nil
-	}
-
-	fSize := stats.Size()
-	f, err := os.Open(filename)
-	if err != nil {
-		fmt.Errorf(err.Error())
-		return nil
-	}
-	defer func() {
-		err = f.Close()
-		if err != nil {
-			fmt.Errorf(err.Error())
-		}
-	}()
-	
-	// read the file 
-	fileBuf := make([]byte, fSize)
+func NewEncoder(buf io.Reader, size uint64, datablockSize uint32, initSeed uint32) *BlockEncoder {
+	// read the stream 
+	fileBuf := make([]byte, size)
 	var bufPtr uint64
-	for bufPtr < uint64(fSize) {
-		nRead, err := f.Read(fileBuf[bufPtr:])
+	for bufPtr < size {
+		nRead, err := buf.Read(fileBuf[bufPtr:])
 		if err != nil {
 			fmt.Errorf(err.Error())
 			return nil
 		}
 		bufPtr += uint64(nRead)
 	}
+
 	// pad with bytes here
-	padNum := fSize % int64(datablockSize)
+	padNum := size % uint64(datablockSize)
 	if padNum != 0 {
-		padNum = int64(datablockSize) - padNum
+		padNum = uint64(datablockSize) - padNum
 		pads := make([]byte, padNum)
 		fileBuf = append(fileBuf, pads...)
 	}
 
-	nb := uint32(math.Ceil(float64(fSize)/float64(datablockSize)))
+	nb := uint32(math.Ceil(float64(size)/float64(datablockSize)))
 	return &BlockEncoder{
 		blockSize: datablockSize + BLOCK_HEADER_SIZE,
 		dataSize: datablockSize,
-		fileSize: uint32(fSize),
+		fileSize: uint32(size),
 
 		fileData: fileBuf,
 		nBlocks: nb,
@@ -100,7 +81,6 @@ func (x uncodedBlock) xorBlock(y uncodedBlock) { //[]byte {
 	for i, yb := range y {
 		x[i] ^= yb
 	}
-//	return x
 }
 	
 

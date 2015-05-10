@@ -1,13 +1,16 @@
 // +build encode-drop
 package main
 
-import "flag"
-import "fmt"
-import "ltcodes/lt"
-import "math/rand"
-import "strconv"
-import "os"
-import "time"
+import (
+	"flag"
+	 "fmt"
+	 "./lt"
+	 "math/rand"
+	 "strconv"
+	 "os"
+	 "time"
+)
+
 func Usage() {
 	fmt.Println("encode <filename> <blockSize> [drop = 0.0]")
 }
@@ -36,7 +39,29 @@ func main() {
 			return
 		}
 	}
-	encoder := lt.NewEncoder(filename, uint32(blockSize), seed)
+
+	// get file size
+	stats, err := os.Lstat(filename)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+	fSize := stats.Size()
+
+	// open file
+	f, err := os.Open(filename)
+	if err != nil {
+		fmt.Errorf(err.Error())
+		return
+	}
+
+	defer func() {
+		if err = f.Close(); err != nil {
+			fmt.Errorf(err.Error())
+		}
+	}()
+	
+	encoder := lt.NewEncoder(f, uint64(fSize), uint32(blockSize), seed)
 	
 	badBlock := lt.EmptyCodedBlock(/*fileSize*/ 137, /*	blockSize*/ 37)
 

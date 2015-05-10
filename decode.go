@@ -1,11 +1,14 @@
 // +build decode
 package main
 
-import "flag"
-import "fmt"
-import "ltcodes/lt"
-import "os"
-import "time"
+import (
+	"flag"
+     "fmt"
+	"./lt"
+	"os"
+	"time"
+)
+
 func Usage() {
 		fmt.Println("decode")
 }
